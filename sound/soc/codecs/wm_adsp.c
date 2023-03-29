@@ -766,6 +766,10 @@ static int wm_adsp_request_firmware_file(struct wm_adsp *dsp,
 		fw->filename = kasprintf(GFP_KERNEL, "%s%s-%s-%s-%s.%s", dir, dsp->part,
 					 fwf, wm_adsp_fw[dsp->fw].file, system_name,
 					 filetype);
+	else if (asoc_component_prefix)
+		fw->filename = kasprintf(GFP_KERNEL, "%s%s-%s-%s-%s.%s", dir, dsp->part,
+				      fwf, wm_adsp_fw[dsp->fw].file, asoc_component_prefix,
+				      filetype);
 	else
 		fw->filename = kasprintf(GFP_KERNEL, "%s%s-%s-%s.%s", dir, dsp->part, fwf,
 					 wm_adsp_fw[dsp->fw].file, filetype);
@@ -854,6 +858,17 @@ VISIBLE_IF_KUNIT int wm_adsp_request_firmware_files(struct wm_adsp *dsp,
 
 		if (fw->wmfw.firmware || (dsp->wmfw_optional && fw->coeff.firmware))
 			return 0;
+	} else if (suffix) {
+		if (!wm_adsp_request_firmware_file(dsp, &fw->wmfw,
+						   cirrus_dir, NULL,
+						   NULL, "wmfw")) {
+
+			adsp_dbg(dsp, "Found '%s'\n", fw->wmfw.filename);
+			wm_adsp_request_firmware_file(dsp, &fw->coeff,
+							      cirrus_dir, NULL,
+							      suffix, "bin");
+			return 0;
+		}
 	}
 
 	/* Check legacy location */
