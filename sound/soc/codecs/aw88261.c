@@ -16,6 +16,7 @@
 #include "aw88261.h"
 #include "aw88395/aw88395_data_type.h"
 #include "aw88395/aw88395_device.h"
+#include <sound/pcm_params.h>
 
 static const struct regmap_config aw88261_remap_config = {
 	.val_bits = 16,
@@ -443,6 +444,12 @@ static int aw88261_dev_reg_update(struct aw88261 *aw88261,
 				aw88261->efuse_check = AW88261_EF_AND_CHECK;
 		}
 
+		if (reg_addr == AW88261_I2SCTRL2_REG &&
+			of_machine_is_compatible("xiaomi,pipa")) {
+			u32 slot_num = 0; // HACK: force left slot for now
+			reg_val = 0b0101000000000000 | (slot_num << 4) | (slot_num); // 0b0101_0000_0000_0000;
+		}
+
 		/* i2stxen */
 		if (reg_addr == AW88261_I2SCTRL3_REG) {
 			/* close tx */
@@ -712,6 +719,44 @@ static void aw88261_start(struct aw88261 *aw88261, bool sync_start)
 			AW88261_START_WORK_DELAY_MS);
 }
 
+static int aw88261_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
+{
+	struct aw88261 *aw88261 = snd_soc_component_get_drvdata(dai->component);
+
+	/* Only print to dmesg as the regs do get reset when starting,
+		for some reason setting fmt must be done before others */
+	dev_info(aw88261->aw_pa->dev, "fmt = 0x%x\n", fmt);
+
+	return 0;
+}
+
+static int aw88261_hw_params(struct snd_pcm_substream *substream,
+	struct snd_pcm_hw_params *params,
+	struct snd_soc_dai *dai)
+{
+	struct snd_soc_component *component = dai->component;
+	struct aw88261 *aw88261 = snd_soc_component_get_drvdata(component);
+
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+		return 0;
+
+	/* Only print to dmesg as the regs do get reset when starting.
+		Val Packett <val@packett.cool>'s FROMLIST patch stored them
+		as aw88261->{sample_rate, bit_width}, but in this hack,
+		just print them */
+	dev_info(aw88261->aw_pa->dev, "sample_rate = 0x%x\n", params_rate(params));
+	dev_info(aw88261->aw_pa->dev, "bit_width = 0x%x\n", params_width(params));
+
+	return 0;
+}
+
+/* set_fmt needs to be done before hw_params, if not AFE
+   will fail to vote and va_macro fails with error -110 */
+static const struct snd_soc_dai_ops aw88261_dai_ops = {
+	.set_fmt = aw88261_dai_set_fmt,
+	.hw_params = aw88261_hw_params,
+};
+
 static struct snd_soc_dai_driver aw88261_dai[] = {
 	{
 		.name = "aw88261-aif",
@@ -730,6 +775,7 @@ static struct snd_soc_dai_driver aw88261_dai[] = {
 			.rates = AW88261_RATES,
 			.formats = AW88261_FORMATS,
 		},
+		.ops = &aw88261_dai_ops,
 	},
 };
 
@@ -1179,6 +1225,14 @@ static const struct snd_soc_component_driver soc_codec_dev_aw88261 = {
 	.remove = aw88261_codec_remove,
 };
 
+static void aw88261_hw_reset(struct aw88261 *aw88261)
+{
+	gpiod_set_value_cansleep(aw88261->reset_gpio, 0);
+	usleep_range(AW88261_1000_US, AW88261_1000_US + 10);
+	gpiod_set_value_cansleep(aw88261->reset_gpio, 1);
+	usleep_range(AW88261_1000_US, AW88261_1000_US + 10);
+}
+
 static void aw88261_parse_channel_dt(struct aw88261 *aw88261)
 {
 	struct aw_device *aw_dev = aw88261->aw_pa;
@@ -1252,6 +1306,13 @@ static int aw88261_i2c_probe(struct i2c_client *i2c)
 	mutex_init(&aw88261->lock);
 
 	i2c_set_clientdata(i2c, aw88261);
+
+	aw88261->reset_gpio =
+		devm_gpiod_get_optional(&i2c->dev, "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(aw88261->reset_gpio))
+		dev_info(&i2c->dev, "reset gpio not defined\n");
+	else
+		aw88261_hw_reset(aw88261);
 
 	aw88261->regmap = devm_regmap_init_i2c(i2c, &aw88261_remap_config);
 	if (IS_ERR(aw88261->regmap)) {
