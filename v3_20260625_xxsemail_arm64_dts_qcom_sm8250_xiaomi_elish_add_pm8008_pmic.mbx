@@ -1,0 +1,297 @@
+From git@z Thu Jan  1 00:00:00 1970
+Subject: [PATCH v3 1/3] arm64: dts: qcom: sm8250-xiaomi-elish: Add pm8008
+ PMIC
+From: Xin Xu <xxsemail@qq.com>
+Date: Thu, 25 Jun 2026 19:50:48 +0800
+Message-Id: <tencent_D4AB219A942591742C3A6DA4DFB0EBA49505@qq.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+Add the pm8008 PMIC node on i2c15 with seven LDOs,
+using GPIO84 as interrupt and GPIO76 as reset.
+
+Signed-off-by: Xin Xu <xxsemail@qq.com>
+Reviewed-by: Konrad Dybcio <konrad.dybcio@oss.qualcomm.com>
+---
+Changes in v3:
+  - Split pinctrl into two separate states for interrupt and reset, drop
+    input-enable.
+  - Reorder bias properties after drive-strength.
+
+Changes in v2:
+  - Fix coding style (blank line, interrupts-extended, property order,
+    drop output-high)
+  - Correct voltage constraints for ldo1 and ldo2
+
+ .../dts/qcom/sm8250-xiaomi-elish-common.dtsi  | 90 +++++++++++++++++++
+ 1 file changed, 90 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm8250-xiaomi-elish-common.dtsi b/arch/arm64/boot/dts/qcom/sm8250-xiaomi-elish-common.dtsi
+index 51b57c697a75..05c366eaeff1 100644
+--- a/arch/arm64/boot/dts/qcom/sm8250-xiaomi-elish-common.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm8250-xiaomi-elish-common.dtsi
+@@ -599,6 +599,82 @@ fuel-gauge@55 {
+ 	};
+ };
+ 
++&i2c15 {
++	clock-frequency = <400000>;
++
++	status = "okay";
++
++	pm8008: pmic@8 {
++		compatible = "qcom,pm8008";
++		reg = <0x8>;
++
++		interrupts-extended = <&tlmm 84 IRQ_TYPE_EDGE_RISING>;
++		reset-gpios = <&tlmm 76 GPIO_ACTIVE_LOW>;
++
++		vdd-l1-l2-supply = <&vreg_s8c_1p35>;
++		vdd-l3-l4-supply = <&vreg_bob>;
++		vdd-l5-supply = <&vreg_bob>;
++		vdd-l6-supply = <&vreg_bob>;
++		vdd-l7-supply = <&vreg_bob>;
++
++		pinctrl-0 = <&pm8008_int_default>, <&pm8008_reset_default>;
++		pinctrl-names = "default";
++
++		gpio-controller;
++		#gpio-cells = <2>;
++		gpio-ranges = <&pm8008 0 0 2>;
++
++		interrupt-controller;
++		#interrupt-cells = <2>;
++
++		#thermal-sensor-cells = <0>;
++
++		regulators {
++			vreg_l1p: ldo1 {
++				regulator-name = "vreg_l1p";
++				regulator-min-microvolt = <1200000>;
++				regulator-max-microvolt = <1200000>;
++			};
++
++			vreg_l2p: ldo2 {
++				regulator-name = "vreg_l2p";
++				regulator-min-microvolt = <1200000>;
++				regulator-max-microvolt = <1200000>;
++			};
++
++			vreg_l3p: ldo3 {
++				regulator-name = "vreg_l3p";
++				regulator-min-microvolt = <2800000>;
++				regulator-max-microvolt = <2800000>;
++			};
++
++			vreg_l4p: ldo4 {
++				regulator-name = "vreg_l4p";
++				regulator-min-microvolt = <2800000>;
++				regulator-max-microvolt = <2800000>;
++			};
++
++			vreg_l5p: ldo5 {
++				regulator-name = "vreg_l5p";
++				regulator-min-microvolt = <2800000>;
++				regulator-max-microvolt = <2800000>;
++			};
++
++			vreg_l6p: ldo6 {
++				regulator-name = "vreg_l6p";
++				regulator-min-microvolt = <1800000>;
++				regulator-max-microvolt = <1800000>;
++			};
++
++			vreg_l7p: ldo7 {
++				regulator-name = "vreg_l7p";
++				regulator-min-microvolt = <2800000>;
++				regulator-max-microvolt = <2900000>;
++			};
++		};
++	};
++};
++
+ &mdss {
+ 	status = "okay";
+ };
+@@ -801,6 +877,20 @@ bt_en_state: bt-default-state {
+ 		bias-pull-up;
+ 	};
+ 
++	pm8008_int_default: pm8008-int-default-state {
++		pins = "gpio84";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++	};
++
++	pm8008_reset_default: pm8008-reset-default-state {
++		pins = "gpio76";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-pull-up;
++	};
++
+ 	wlan_en_state: wlan-default-state {
+ 		pins = "gpio20";
+ 		function = "gpio";
+-- 
+2.53.0
+
+From git@z Thu Jan  1 00:00:00 1970
+Subject: [PATCH v3 2/3] arm64: dts: qcom: sm8250: Add cam_mclk3_default
+ pinctrl
+From: Xin Xu <xxsemail@qq.com>
+Date: Thu, 25 Jun 2026 20:05:36 +0800
+Message-Id: <tencent_47473BB31C9142449F8C7C1BE69D9071510A@qq.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+Add a default pin configuration for CAM_MCLK3 (GPIO97), which is used
+as a master clock for camera sensors on SM8250 boards.
+
+Signed-off-by: Xin Xu <xxsemail@qq.com>
+Reviewed-by: Konrad Dybcio <konrad.dybcio@oss.qualcomm.com>
+---
+ arch/arm64/boot/dts/qcom/sm8250.dtsi | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm8250.dtsi b/arch/arm64/boot/dts/qcom/sm8250.dtsi
+index 7076720413ab..05e765616112 100644
+--- a/arch/arm64/boot/dts/qcom/sm8250.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm8250.dtsi
+@@ -5165,6 +5165,13 @@ mclk-pins {
+ 				};
+ 			};
+ 
++			cam_mclk3_default: cam-mclk3-default-state {
++				pins = "gpio97";
++				function = "cam_mclk";
++				drive-strength = <4>;
++				bias-disable;
++			};
++
+ 			cci0_default: cci0-default-state {
+ 				cci0_i2c0_default: cci0-i2c0-default-pins {
+ 					/* SDA, SCL */
+-- 
+2.53.0
+
+From git@z Thu Jan  1 00:00:00 1970
+Subject: [PATCH v3 3/3] arm64: dts: qcom: sm8250-xiaomi-elish: Add ov8856
+ front camera
+From: Xin Xu <xxsemail@qq.com>
+Date: Thu, 25 Jun 2026 20:08:14 +0800
+Message-Id: <tencent_A89D858754397A68C4C830EA0487CB255A05@qq.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+Add the ov8856 front camera, connected on CCI1 to CSIPHY4 and
+powered by pm8008 LDOs and other supplies.
+
+Signed-off-by: Xin Xu <xxsemail@qq.com>
+---
+Changes in v3:
+  - Reorder pinctrl properties in camera_front_active.
+  - Use the new cam_mclk3_default from sm8250.dtsi and remove board-local
+    mclk3 node.
+
+Changes in v2:
+  - Fix coding style (property order)
+
+ .../dts/qcom/sm8250-xiaomi-elish-common.dtsi  | 63 +++++++++++++++++++
+ 1 file changed, 63 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm8250-xiaomi-elish-common.dtsi b/arch/arm64/boot/dts/qcom/sm8250-xiaomi-elish-common.dtsi
+index 05c366eaeff1..19aff83ecf7b 100644
+--- a/arch/arm64/boot/dts/qcom/sm8250-xiaomi-elish-common.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm8250-xiaomi-elish-common.dtsi
+@@ -4,6 +4,7 @@
+  */
+ 
+ #include <dt-bindings/arm/qcom,ids.h>
++#include <dt-bindings/media/video-interfaces.h>
+ #include <dt-bindings/phy/phy.h>
+ #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
+ #include <dt-bindings/usb/pd.h>
+@@ -531,6 +532,61 @@ vreg_l7f_1p8: ldo7 {
+ 	};
+ };
+ 
++&camss {
++	status = "okay";
++
++	vdda-phy-supply = <&vreg_l5a_0p88>;
++	vdda-pll-supply = <&vreg_l9a_1p2>;
++
++	ports {
++		port@4 {
++			csiphy4_ep: endpoint {
++				clock-lanes = <7>;
++				data-lanes = <0 1>;
++				bus-type = <MEDIA_BUS_TYPE_CSI2_DPHY>;
++				remote-endpoint = <&ov8856_front_ep>;
++			};
++		};
++	};
++};
++
++&cci1 {
++	status = "okay";
++};
++
++&cci1_i2c1 {
++	camera_front: camera@10 {
++		compatible = "ovti,ov8856";
++		reg = <0x10>;
++
++		avdd-supply = <&vreg_l5p>;
++		dovdd-supply = <&vreg_l1c_1p8>;
++		dvdd-supply = <&vreg_l1p>;
++
++		clocks = <&camcc CAM_CC_MCLK3_CLK>;
++		clock-names = "xvclk";
++		assigned-clocks = <&camcc CAM_CC_MCLK3_CLK>;
++		assigned-clock-rates = <19200000>;
++
++		reset-gpios = <&tlmm 109 GPIO_ACTIVE_LOW>;
++
++		pinctrl-0 = <&cam_mclk3_default &camera_front_active>;
++		pinctrl-names = "default";
++
++		orientation = <0>; /* Front facing */
++		rotation = <270>;
++
++		port {
++			ov8856_front_ep: endpoint {
++				data-lanes = <1 2>;
++				link-frequencies = /bits/ 64
++					<720000000 360000000>;
++				remote-endpoint = <&csiphy4_ep>;
++			};
++		};
++	};
++};
++
+ &cdsp {
+ 	firmware-name = "qcom/sm8250/xiaomi/elish/cdsp.mbn";
+ 	status = "okay";
+@@ -891,6 +947,13 @@ pm8008_reset_default: pm8008-reset-default-state {
+ 		bias-pull-up;
+ 	};
+ 
++	camera_front_active: camera-front-active-state {
++		pins = "gpio109";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++	};
++
+ 	wlan_en_state: wlan-default-state {
+ 		pins = "gpio20";
+ 		function = "gpio";
+-- 
+2.53.0
+
