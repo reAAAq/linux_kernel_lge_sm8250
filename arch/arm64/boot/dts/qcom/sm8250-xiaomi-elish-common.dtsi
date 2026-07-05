@@ -1122,7 +1122,7 @@
 		status = "disabled";
 
 		spi-max-frequency = <19200000>;	//4800000,9600000,15000000,19200000
-		novatek,irq-gpio = <&tlmm 39 0x2001>;
+		irq-gpios = <&tlmm 39 GPIO_ACTIVE_LOW>;
 
 		pinctrl-names = "default", "sleep";
 		pinctrl-0 = <&ts_default>;
