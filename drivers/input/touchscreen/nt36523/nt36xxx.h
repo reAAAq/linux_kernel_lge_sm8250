@@ -156,8 +156,10 @@ struct nvt_ts_data {
 	uint8_t auto_copy;
 	uint32_t int_trigger_type;
 	int32_t irq_gpio;
+	struct gpio_desc *irq_gpiod;
 	uint32_t irq_flags;
 	int32_t reset_gpio;
+	struct gpio_desc *reset_gpiod;
 	uint32_t reset_flags;
 	struct mutex lock;
 	const struct nvt_ts_mem_map *mmap;
