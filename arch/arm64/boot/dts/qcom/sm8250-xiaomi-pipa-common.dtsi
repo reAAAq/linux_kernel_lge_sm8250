@@ -1187,7 +1187,7 @@
 
 		spi-max-frequency = <19200000>;	//4800000,9600000,15000000,19200000
 		//interrupts-extended = <&tlmm 39 0x2001>;
-		novatek,irq-gpio = <&tlmm 39 0x2001>;
+		irq-gpios = <&tlmm 39 GPIO_ACTIVE_LOW>;
 		novatek,swrst-n8-addr = <0x03F0FE>;
 
 		novatek,pen-support;
