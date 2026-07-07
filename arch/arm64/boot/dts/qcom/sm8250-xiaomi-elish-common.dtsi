@@ -1254,6 +1254,8 @@
 		pinctrl-0 = <&ts_default>;
 		pinctrl-1 = <&ts_sleep>;
 
+		panel = <&display_panel>;
+
 		novatek,pen-support;
 		novatek,wgp-stylus;
 
