@@ -5179,6 +5179,13 @@
 				};
 			};
 
+			cam_mclk0_default: cam-mclk0-default-state {
+				pins = "gpio94";
+				function = "cam_mclk";
+				drive-strength = <4>;
+				bias-disable;
+			};
+
 			cam_mclk3_default: cam-mclk3-default-state {
 				pins = "gpio97";
 				function = "cam_mclk";
