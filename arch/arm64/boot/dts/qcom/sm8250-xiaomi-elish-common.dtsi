@@ -536,12 +536,57 @@
 	vdda-pll-supply = <&vreg_l9a_1p2>;
 
 	ports {
+		port@1 {
+			csiphy1_ep: endpoint {
+				clock-lanes = <7>;
+				data-lanes = <0 1 2 3>;
+				bus-type = <MEDIA_BUS_TYPE_CSI2_DPHY>;
+				remote-endpoint = <&ov13b10_wide_ep>;
+			};
+		};
+
 		port@4 {
 			csiphy4_ep: endpoint {
 				clock-lanes = <7>;
 				data-lanes = <0 1>;
 				bus-type = <MEDIA_BUS_TYPE_CSI2_DPHY>;
 				remote-endpoint = <&ov8856_front_ep>;
+			};
+		};
+	};
+};
+
+&cci0 {
+	status = "okay";
+};
+
+&cci0_i2c0 {
+	camera_wide: camera@10 {
+		compatible = "ovti,ov13b10";
+		reg = <0x10>;
+
+		avdd-supply = <&vreg_l7p>;
+		dovdd-supply = <&vreg_l1c_1p8>;
+		dvdd-supply = <&vreg_l2p>;
+
+		clocks = <&camcc CAM_CC_MCLK0_CLK>;
+		clock-names = "xvclk";
+		assigned-clocks = <&camcc CAM_CC_MCLK0_CLK>;
+		assigned-clock-rates = <19200000>;
+
+		reset-gpios = <&tlmm 93 GPIO_ACTIVE_LOW>;
+
+		pinctrl-0 = <&cam_mclk0_default &camera_wide_active>;
+		pinctrl-names = "default";
+
+		orientation = <1>; /* Rear facing */
+		rotation = <270>;
+
+		port {
+			ov13b10_wide_ep: endpoint {
+				data-lanes = <1 2 3 4>;
+				link-frequencies = /bits/ 64 <560000000>;
+				remote-endpoint = <&csiphy1_ep>;
 			};
 		};
 	};
@@ -1300,6 +1345,13 @@
 
 	camera_front_active: camera-front-active-state {
 		pins = "gpio109";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	camera_wide_active: camera-wide-active-state {
+		pins = "gpio93";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
