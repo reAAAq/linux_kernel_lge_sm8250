@@ -543,6 +543,15 @@
 	vdda-pll-supply = <&vreg_l9a_1p2>;
 
 	ports {
+		port@0 {
+			csiphy0_ep: endpoint {
+				clock-lanes = <7>;
+				data-lanes = <0 1>;
+				bus-type = <MEDIA_BUS_TYPE_CSI2_DPHY>;
+				remote-endpoint = <&hi556_depth_ep>;
+			};
+		};
+
 		port@1 {
 			csiphy1_ep: endpoint {
 				clock-lanes = <7>;
@@ -594,6 +603,38 @@
 				data-lanes = <1 2 3 4>;
 				link-frequencies = /bits/ 64 <560000000>;
 				remote-endpoint = <&csiphy1_ep>;
+			};
+		};
+	};
+};
+
+&cci0_i2c1 {
+	camera_depth: camera@20 {
+		compatible = "hynix,hi556";
+		reg = <0x20>;
+
+		avdd-supply = <&vreg_l3p>;
+		dovdd-supply = <&vreg_l1c_1p8>;
+		dvdd-supply = <&vreg_l2c_1p2>;
+
+		clocks = <&camcc CAM_CC_MCLK1_CLK>;
+		clock-names = "clk";
+		assigned-clocks = <&camcc CAM_CC_MCLK1_CLK>;
+		assigned-clock-rates = <19200000>;
+
+		reset-gpios = <&tlmm 26 GPIO_ACTIVE_LOW>;
+
+		pinctrl-0 = <&cam_mclk1_default &camera_depth_active>;
+		pinctrl-names = "default";
+
+		orientation = <1>; /* Rear facing */
+		rotation = <270>;
+
+		port {
+			hi556_depth_ep: endpoint {
+				data-lanes = <1 2>;
+				link-frequencies = /bits/ 64 <437000000>;
+				remote-endpoint = <&csiphy0_ep>;
 			};
 		};
 	};
@@ -1348,6 +1389,13 @@
 		function = "gpio";
 		drive-strength = <2>;
 		bias-pull-up;
+	};
+
+	camera_depth_active: camera-depth-active-state {
+		pins = "gpio26";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
 	};
 
 	camera_front_active: camera-front-active-state {
