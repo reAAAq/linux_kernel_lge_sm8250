@@ -1437,10 +1437,19 @@ static const struct acpi_device_id hi556_acpi_ids[] = {
 MODULE_DEVICE_TABLE(acpi, hi556_acpi_ids);
 #endif
 
+#ifdef CONFIG_OF
+static const struct of_device_id hi556_of_match[] = {
+	{ .compatible = "hynix,hi556" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, hi556_of_match);
+#endif
+
 static struct i2c_driver hi556_i2c_driver = {
 	.driver = {
 		.name = "hi556",
 		.acpi_match_table = ACPI_PTR(hi556_acpi_ids),
+		.of_match_table = of_match_ptr(hi556_of_match),
 		.pm = pm_sleep_ptr(&hi556_pm_ops),
 	},
 	.probe = hi556_probe,
