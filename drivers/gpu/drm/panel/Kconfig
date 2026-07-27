@@ -471,6 +471,17 @@ config DRM_PANEL_LG_SW43408
 	  pixel. It provides a MIPI DSI interface to the host and has a
 	  built-in LED backlight.
 
+config DRM_PANEL_LG_SW43103
+	tristate "LG SW43103 panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	select DRM_DISPLAY_DSC_HELPER
+	select DRM_DISPLAY_HELPER
+	help
+	  Say Y here to enable the BOE 1080x2460 AMOLED panel with an LG
+	  SW43103 display controller, as used by the LG V60 ThinQ.
+
 config DRM_PANEL_LXD_M9189A
 	tristate "LXD M9189A MIPI-DSI LCD panel"
 	depends on OF

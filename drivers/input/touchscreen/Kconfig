@@ -14,6 +14,14 @@ if INPUT_TOUCHSCREEN
 
 source "drivers/input/touchscreen/nt36523/Kconfig"
 
+config TOUCHSCREEN_SW42902
+	tristate "LG SW42902 touchscreen"
+	depends on I2C
+	select INPUT_MT
+	help
+	  Say Y here to enable the Silicon Works SW42902 capacitive
+	  touchscreen controller used by the LG V60 ThinQ.
+
 config TOUCHSCREEN_88PM860X
 	tristate "Marvell 88PM860x touchscreen"
 	depends on MFD_88PM860X

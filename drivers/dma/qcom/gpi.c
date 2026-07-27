@@ -2295,6 +2295,8 @@ static int gpi_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id gpi_of_match[] = {
+	/* LG's SM8250 firmware exposes QUP1 GPI through EE offset 0x6000. */
+	{ .compatible = "lge,timelm-gpi-dma", .data = (void *)0x6000 },
 	{ .compatible = "qcom,sdm845-gpi-dma", .data = (void *)0x0 },
 	{ .compatible = "qcom,sm6350-gpi-dma", .data = (void *)0x10000 },
 	/*

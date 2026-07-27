@@ -11,8 +11,7 @@
  * SoC / regulator skeleton reused from sm8250-sony-xperia-edo (same PMIC
  * stack and matching reserved-memory layout as kona-timelm_common.dtsi).
  *
- * Status: bring-up draft — USB gadget + UFS + cont_splash simplefb + keys.
- *         Full MDSS/panel SW43103 not enabled yet (no mainline panel driver).
+ * Status: bring-up draft — USB gadget + UFS + SW43103 DRM panel + keys.
  *         Audio/remoteproc/smp2p left disabled.
  */
 
@@ -151,7 +150,7 @@
  * Touch (Lineage kona-timelm_lao_com-touch.dtsi):
  *   &qupv3_se13_i2c / i2c13
  *   sw42902@28  IRQ TLMM 39  reset TLMM 38
- * No mainline binding yet — leave bus on for probing later.
+ * The controller uses dedicated GPIO-switched VDD/VCL rails.
  */
 /* Drop Sony edo touch IC; V60 uses LGE sw42902 @0x28 (no mainline driver yet). */
 &i2c13 {
@@ -159,14 +158,24 @@
 	clock-frequency = <400000>;
 	/delete-node/ touchscreen@48;
 
-	/* touchscreen@28 {
-	 *	compatible = "lge,sw42902";
-	 *	reg = <0x28>;
-	 *	interrupt-parent = <&tlmm>;
-	 *	interrupts = <39 IRQ_TYPE_EDGE_FALLING>;
-	 *	reset-gpios = <&tlmm 38 GPIO_ACTIVE_HIGH>;
-	 * };
-	 */
+	touchscreen@28 {
+		compatible = "lge,sw42902";
+		reg = <0x28>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <39 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpios = <&tlmm 38 GPIO_ACTIVE_HIGH>;
+		vcl-gpios = <&tlmm 67 GPIO_ACTIVE_HIGH>;
+		vdd-gpios = <&tlmm 68 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ts_int_default>;
+		touchscreen-size-x = <1080>;
+		touchscreen-size-y = <2460>;
+	};
+};
+
+/* Lineage uses EE offset 0x6000 for the QUP1 GPI block on timelm. */
+&gpi_dma1 {
+	compatible = "lge,timelm-gpi-dma", "qcom,sm8250-gpi-dma";
 };
 
 &tlmm {
@@ -192,6 +201,20 @@
 		drive-strength = <2>;
 		bias-disable;
 		output-high;
+	};
+
+	panel_reset_default: panel-reset-default-state {
+		pins = "gpio75";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-disable;
+	};
+
+	panel_te_default: panel-te-default-state {
+		pins = "gpio66";
+		function = "mdp_vsync";
+		drive-strength = <2>;
+		bias-pull-down;
 	};
 };
 
@@ -281,17 +304,44 @@
 	status = "disabled";
 };
 
-/*
- * pstore #3 (initcall_debug): hang inside deferred_probe_initcall right after
- * smem probe. Next deferred devices include TLMM, then dispcc / smp2p / VA
- * macro. Disable the known-risky consumers for USB bring-up.
- */
 &dispcc {
-	status = "disabled";
+	status = "okay";
 };
 
 &mdss {
-	status = "disabled";
+	status = "okay";
+};
+
+&mdss_dsi0 {
+	vdda-supply = <&vreg_l9a_1p2>;
+	status = "okay";
+
+	panel@0 {
+		compatible = "lg,sw43103";
+		reg = <0>;
+		vddi-supply = <&vreg_l14a_1p8>;
+		vpnl-supply = <&vreg_l11c_3p0>;
+		reset-gpios = <&tlmm 75 GPIO_ACTIVE_LOW>;
+		enable-gpios = <&pm8150l_gpios 4 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&panel_reset_default &panel_te_default>;
+
+		port {
+			panel_in_0: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	data-lanes = <0 1 2 3>;
+	remote-endpoint = <&panel_in_0>;
+};
+
+&mdss_dsi0_phy {
+	vdds-supply = <&vreg_l5a_0p88>;
+	status = "okay";
 };
 
 &vamacro {
@@ -309,10 +359,3 @@
 &{/smp2p-slpi} {
 	status = "disabled";
 };
-
-/*
- * Panel note (not wired yet):
- *   msm_drm.dsi_display0=qcom,mdss_dsi_sw43103_pv_fhd_dsc_cmd
- *   BOE SW43103, FHD DSC command mode, 1080x2460
- *   Lineage: dsi-panel-sw43103-pv-fhd-dsc-cmd.dtsi
- */
