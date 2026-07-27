@@ -117,6 +117,15 @@
 	reg = <0x0 0x9c000000 0x0 0x01200000>;
 };
 
+/* Adreno 650.2 — required by Phoc/Phosh for EGL rendering. */
+&gmu {
+	status = "okay";
+};
+
+&gpu {
+	status = "okay";
+};
+
 &pon_pwrkey {
 	status = "okay";
 };
