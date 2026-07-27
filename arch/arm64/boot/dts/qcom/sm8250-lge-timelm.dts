@@ -1,0 +1,318 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2026, timelm mainline port
+ *
+ * LG V60 ThinQ (timelm) — mainline DTS draft.
+ *
+ * Board facts translated from LineageOS downstream:
+ *   arch/arm64/boot/dts/vendor/lge/kona-timelm/kona-timelm_lao_com/
+ *   (rev_1.02 overlay + common panel/touch/usb/misc/storage)
+ *
+ * SoC / regulator skeleton reused from sm8250-sony-xperia-edo (same PMIC
+ * stack and matching reserved-memory layout as kona-timelm_common.dtsi).
+ *
+ * Status: bring-up draft — USB gadget + UFS + cont_splash simplefb + keys.
+ *         Full MDSS/panel SW43103 not enabled yet (no mainline panel driver).
+ *         Audio/remoteproc/smp2p left disabled.
+ */
+
+/dts-v1/;
+
+#include "sm8250-sony-xperia-edo.dtsi"
+
+/* Sony edo disables UFS due to a Sony-specific brick bug; LG needs UFS. */
+/delete-node/ &{/reserved-memory/ramoops@ffc00000};
+/delete-node/ &gpio_keys;
+/* Drop Sony simplefb that pulls dispcc/MDSS_GDSC; we add a clock-less one below. */
+/delete-node/ &framebuffer;
+
+/ {
+	model = "LG Electronics LG V60 ThinQ (timelm)";
+	compatible = "lge,timelm", "qcom,sm8250";
+	chassis-type = "handset";
+
+	/*
+	 * From Lineage kona-timelm_lao_com_rev-1.02-overlay.dts /
+	 * live DT: model = "LG Electronics, Timelm_lao, rev_1.02"
+	 */
+	qcom,msm-id = <356 0x20001>; /* SM8250 v2.1 — matches boot FDT idx0 */
+	qcom,board-id = <0x000C0208 0>;
+
+	aliases {
+		serial0 = &uart12; /* Lineage: &qupv3_se12_2uart status=ok */
+	};
+
+	chosen {
+		/*
+		 * Cont splash simplefb WITHOUT dispcc clocks — avoids early
+		 * MDSS_GDSC hang. Relies on cmdline clk_ignore_unused /
+		 * pd_ignore_unused so bootloader-enabled display clocks stay on.
+		 * Panel: SW43103 FHD DSC cmd 1080x2460 (Lineage).
+		 */
+		stdout-path = "serial0:115200n8";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		framebuffer: framebuffer@9c000000 {
+			compatible = "simple-framebuffer";
+			reg = <0x0 0x9c000000 0x0 0x01200000>;
+			width = <1080>;
+			height = <2460>;
+			stride = <4320>; /* 1080 * 4 */
+			format = "a8r8g8b8";
+		};
+	};
+
+	/*
+	 * Lineage gpio-keys (kona-timelm_lao_com-misc.dtsi):
+	 *   vol_up  -> pm8150 GPIO6
+	 *   hot1    -> pm8150 GPIO1 (side/fingerprint assist key)
+	 * Volume Down via PON RESIN.
+	 */
+	gpio_keys: gpio-keys {
+		compatible = "gpio-keys";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&vol_up_n &hot1_n>;
+
+		key-vol-up {
+			label = "Volume Up";
+			linux,code = <KEY_VOLUMEUP>;
+			gpios = <&pm8150_gpios 6 GPIO_ACTIVE_LOW>;
+			debounce-interval = <15>;
+			linux,can-disable;
+			wakeup-source;
+		};
+
+		key-hot1 {
+			label = "Hot1";
+			linux,code = <KEY_HOME>;
+			gpios = <&pm8150_gpios 1 GPIO_ACTIVE_LOW>;
+			debounce-interval = <15>;
+			linux,can-disable;
+			wakeup-source;
+		};
+	};
+
+	reserved-memory {
+		/*
+		 * Lineage kona-timelm_common.dtsi:
+		 *   ramoops reg = <0xb0000000 0x280000>
+		 * After a failed mainline boot, dump /sys/fs/pstore under Lineage.
+		 */
+		ramoops@b0000000 {
+			compatible = "ramoops";
+			reg = <0x0 0xb0000000 0x0 0x280000>;
+			record-size = <0x1000>;
+			console-size = <0x40000>;
+			ftrace-size = <0x40000>;
+			pmsg-size = <0x200000>;
+			ecc-size = <0>;
+			no-map;
+		};
+	};
+};
+
+&cont_splash_mem {
+	reg = <0x0 0x9c000000 0x0 0x01200000>;
+};
+
+&pon_pwrkey {
+	status = "okay";
+};
+
+&pon_resin {
+	status = "okay";
+	linux,code = <KEY_VOLUMEDOWN>;
+};
+
+&pm8150_gpios {
+	/delete-node/ vol_down_n;
+
+	vol_up_n: vol-up-n-state {
+		pins = "gpio6";
+		function = "normal";
+		power-source = <0>;
+		bias-pull-up;
+		input-enable;
+	};
+
+	hot1_n: hot1-n-state {
+		pins = "gpio1";
+		function = "normal";
+		power-source = <0>;
+		bias-pull-up;
+		input-enable;
+	};
+};
+
+/*
+ * Touch (Lineage kona-timelm_lao_com-touch.dtsi):
+ *   &qupv3_se13_i2c / i2c13
+ *   sw42902@28  IRQ TLMM 39  reset TLMM 38
+ * No mainline binding yet — leave bus on for probing later.
+ */
+/* Drop Sony edo touch IC; V60 uses LGE sw42902 @0x28 (no mainline driver yet). */
+&i2c13 {
+	status = "okay";
+	clock-frequency = <400000>;
+	/delete-node/ touchscreen@48;
+
+	/* touchscreen@28 {
+	 *	compatible = "lge,sw42902";
+	 *	reg = <0x28>;
+	 *	interrupt-parent = <&tlmm>;
+	 *	interrupts = <39 IRQ_TYPE_EDGE_FALLING>;
+	 *	reset-gpios = <&tlmm 38 GPIO_ACTIVE_HIGH>;
+	 * };
+	 */
+};
+
+&tlmm {
+	/*
+	 * Lineage kona-timelm_common-pinctrl.dtsi:
+	 *   lge,access-denied-gpios = <1128..1131 1140..1143>
+	 *   (chip base +1100 → GPIO 28-31, 40-43)
+	 * Replace Sony edo <40 4>, <52 4> — unreserved 28-31 may hang TLMM probe.
+	 */
+	gpio-reserved-ranges = <28 4>, <40 4>;
+
+	ts_int_default: ts-int-default-state {
+		pins = "gpio39";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-up;
+		input-enable;
+	};
+
+	ts_reset_default: ts-reset-default-state {
+		pins = "gpio38";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		output-high;
+	};
+};
+
+&uart12 {
+	status = "okay";
+};
+
+/* UFS — Lineage enables ufshc@1d84000; required for rootfs on this phone. */
+&ufs_mem_hc {
+	vcc-supply = <&vreg_l17a_3p0>;
+	vcc-max-microamp = <800000>;
+	vccq-supply = <&vreg_l6a_1p2>;
+	vccq-max-microamp = <800000>;
+	vccq2-supply = <&vreg_s4a_1p8>;
+	vccq2-max-microamp = <800000>;
+	status = "okay";
+};
+
+&ufs_mem_phy {
+	vdda-phy-supply = <&vreg_l5a_0p88>;
+	vdda-pll-supply = <&vreg_l9a_1p2>;
+	status = "okay";
+};
+
+/*
+ * USB — cmdline: androidboot.usbcontroller=a600000.dwc3
+ * Lineage: usb0 / dwc3@a600000 maximum-speed = "super-speed"
+ */
+&usb_1 {
+	status = "okay";
+};
+
+&usb_1_dwc3 {
+	dr_mode = "peripheral";
+};
+
+&usb_1_hsphy {
+	status = "okay";
+	vdda-pll-supply = <&vreg_l5a_0p88>;
+	vdda18-supply = <&vreg_l12a_1p8>;
+	vdda33-supply = <&vreg_l2a_3p1>;
+};
+
+&usb_1_qmpphy {
+	status = "okay";
+	vdda-phy-supply = <&vreg_l9a_1p2>;
+	vdda-pll-supply = <&vreg_l18a_0p9>;
+};
+
+/*
+ * pstore showed SPMI USID 0xa/0xb (pm8009 from pm8009.dtsi) failing with
+ * pmic_arb transaction 0x3 / probe -EIO during bring-up. Drop them for now;
+ * USB/UFS supplies come from pm8150*, not these slaves.
+ */
+&spmi_bus {
+	/delete-node/ pmic@a;
+	/delete-node/ pmic@b;
+};
+
+/* Sony pm8009-rpmh regulator block — not needed for USB bring-up */
+&apps_rsc {
+	/delete-node/ regulators-2;
+};
+
+/* Avoid remoteproc firmware waits hanging early boot */
+&adsp {
+	status = "disabled";
+};
+
+&cdsp {
+	status = "disabled";
+};
+
+&slpi {
+	status = "disabled";
+};
+
+&venus {
+	status = "disabled";
+};
+
+&pcie0 {
+	status = "disabled";
+};
+
+&pcie2 {
+	status = "disabled";
+};
+
+/*
+ * pstore #3 (initcall_debug): hang inside deferred_probe_initcall right after
+ * smem probe. Next deferred devices include TLMM, then dispcc / smp2p / VA
+ * macro. Disable the known-risky consumers for USB bring-up.
+ */
+&dispcc {
+	status = "disabled";
+};
+
+&mdss {
+	status = "disabled";
+};
+
+&vamacro {
+	status = "disabled";
+};
+
+&{/smp2p-adsp} {
+	status = "disabled";
+};
+
+&{/smp2p-cdsp} {
+	status = "disabled";
+};
+
+&{/smp2p-slpi} {
+	status = "disabled";
+};
+
+/*
+ * Panel note (not wired yet):
+ *   msm_drm.dsi_display0=qcom,mdss_dsi_sw43103_pv_fhd_dsc_cmd
+ *   BOE SW43103, FHD DSC command mode, 1080x2460
+ *   Lineage: dsi-panel-sw43103-pv-fhd-dsc-cmd.dtsi
+ */
