@@ -15,6 +15,9 @@
 #define SW42902_TC_CMD		0x0c00
 #define SW42902_TC_IC_STATUS	0x0600
 #define SW42902_SERIAL_SPI_EN	0x0fe4
+#define SW42902_TCI_ENABLE	0x0f30
+#define SW42902_DRIVING_STOP	0x04
+#define SW42902_DRIVING_ACTIVE	0x8303
 
 struct sw42902_touch_data {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
@@ -201,10 +204,28 @@ static int sw42902_hw_init(struct sw42902 *ts)
 	if (ret)
 		return ret;
 
-	/* U0: normal display-on scanning mode. */
-	ret = sw42902_write_u32(ts, SW42902_TC_CMD + 3, 1);
+	/* Disable the downstream Knock-On/TCI state left by the bootloader. */
+	ret = sw42902_write_u32(ts, SW42902_TCI_ENABLE, 0);
 	if (ret)
 		return ret;
+
+	/*
+	 * The downstream driver always stops the touch engine for two frames
+	 * before changing its driving mode.  Skipping this transition leaves the
+	 * controller responsive over I2C but with sensing disabled.
+	 */
+	ret = sw42902_write_u32(ts, SW42902_TC_CMD + 3,
+				SW42902_DRIVING_STOP);
+	if (ret)
+		return ret;
+	msleep(30);
+
+	/* Lineage uses its U3 command for normal display-on scanning. */
+	ret = sw42902_write_u32(ts, SW42902_TC_CMD + 3,
+				SW42902_DRIVING_ACTIVE);
+	if (ret)
+		return ret;
+	msleep(200);
 
 	dev_info(&ts->client->dev, "controller ready, status %#x\n", status);
 	return 0;
