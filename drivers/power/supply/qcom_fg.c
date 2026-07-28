@@ -1116,8 +1116,8 @@ static int qcom_fg_notifier_call(struct notifier_block *nb,
 				POWER_SUPPLY_PROP_STATUS, &propval);
 		if (ret)
 			chip->status = POWER_SUPPLY_STATUS_UNKNOWN;
-
-		chip->status = propval.intval;
+		else
+			chip->status = propval.intval;
 
 		power_supply_changed(chip->batt_psy);
 
@@ -1143,6 +1143,7 @@ static int qcom_fg_notifier_call(struct notifier_block *nb,
 static int qcom_fg_probe(struct platform_device *pdev)
 {
 	struct power_supply_config supply_config = {};
+	union power_supply_propval propval;
 	struct qcom_fg_chip *chip;
 	const __be32 *prop_addr;
 	int irq;
@@ -1309,15 +1310,25 @@ static int qcom_fg_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* Optional: Get charger power supply for status checking */
-	chip->chg_psy = power_supply_get_by_name("power-supplies");
+	/* Optional: Get the charger referenced by the power-supplies phandle. */
+	chip->chg_psy = devm_power_supply_get_by_reference(chip->dev,
+							"power-supplies");
 	if (IS_ERR(chip->chg_psy)) {
 		ret = PTR_ERR(chip->chg_psy);
-		dev_warn(chip->dev, "Failed to get charger supply: %d\n", ret);
+		if (ret != -ENOENT)
+			return dev_err_probe(chip->dev, ret,
+					     "Failed to get charger supply\n");
 		chip->chg_psy = NULL;
+	} else if (!chip->chg_psy) {
+		return dev_err_probe(chip->dev, -EPROBE_DEFER,
+				     "Charger supply is not registered yet\n");
 	}
 
 	if (chip->chg_psy) {
+		ret = power_supply_get_property(chip->chg_psy,
+				POWER_SUPPLY_PROP_STATUS, &propval);
+		chip->status = ret ? POWER_SUPPLY_STATUS_UNKNOWN : propval.intval;
+
 		INIT_DELAYED_WORK(&chip->status_changed_work,
 			qcom_fg_status_changed_worker);
 
