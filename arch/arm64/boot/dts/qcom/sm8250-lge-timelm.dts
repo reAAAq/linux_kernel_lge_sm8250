@@ -64,6 +64,20 @@
 	};
 
 	/*
+	 * LG BL-T46 pack.  Both Tocad and LGC variants in the downstream
+	 * timelm tree use a 5000 mAh nominal capacity and 4.45 V maximum.
+	 * The mainline PM8150B charger and fuel-gauge drivers consume the
+	 * generic simple-battery properties below.
+	 */
+	battery: battery {
+		compatible = "simple-battery";
+		charge-full-design-microamp-hours = <5000000>;
+		energy-full-design-microwatt-hours = <19250000>;
+		voltage-min-design-microvolt = <3400000>;
+		voltage-max-design-microvolt = <4450000>;
+	};
+
+	/*
 	 * Lineage gpio-keys (kona-timelm_lao_com-misc.dtsi):
 	 *   vol_up  -> pm8150 GPIO6
 	 *   hot1    -> pm8150 GPIO1 (side/fingerprint assist key)
@@ -153,6 +167,18 @@
 		bias-pull-up;
 		input-enable;
 	};
+};
+
+/* PM8150B SMB5 charger and Gen4 fuel gauge used by the V60. */
+&pm8150b_charger {
+	monitored-battery = <&battery>;
+	status = "okay";
+};
+
+&pm8150b_fg {
+	monitored-battery = <&battery>;
+	power-supplies = <&pm8150b_charger>;
+	status = "okay";
 };
 
 /*
